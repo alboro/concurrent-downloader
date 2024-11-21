@@ -1,0 +1,66 @@
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+    temporary_directory: '%kernel.project_dir%/files/temporary'
+    complete_directory: '%kernel.project_dir%/files/completed'
+
+services:
+    # default configuration for services in *this* file
+    _defaults:
+        autowire: true      # Automatically injects dependencies in your services.
+        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+
+    # makes classes in src/ available to be used as services
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    App\Service\FileDownloader:
+        arguments:
+            $tempDir: '%temporary_directory%'
+            $completedDir: '%complete_directory%'
+
+    App\Factory\ByteStreamFactory:
+        class: App\Factory\ByteStreamFactory
+
+    Amp\ByteStream\getStdout:
+        factory: ['App\Factory\ByteStreamFactory', 'getStdout']
+
+    Amp\Log\StreamHandler:
+        arguments:
+            - '@Amp\ByteStream\getStdout'
+        calls:
+            - method: setFormatter
+              arguments:
+                  - '@Amp\Log\ConsoleFormatter'
+            - method: setLevel
+              arguments:
+                  - !php/const Monolog\Logger::INFO
+
+    Amp\Log\ConsoleFormatter: ~
+
+    Monolog\Logger:
+        arguments:
+            $name: 'async_logger'
+        calls:
+            - method: pushHandler
+              arguments:
+                  - '@Amp\Log\StreamHandler'
+    logger:
+        alias: 'Monolog\Logger'
+        public: true
+
+    App\Command\DownloadCommand:
+        arguments:
+            $downloader: '@App\Service\FileDownloader'
+        tags: [ 'console.command' ]
+
+    # add more service definitions when explicit configuration is needed
+    # please note that last definitions always *replace* previous ones

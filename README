@@ -1,0 +1,9 @@
+This application is an example of concurrent downloading the list of files from the given URLs.
+
+Set up:
+> composer install
+
+Run:
+> bin/console app:download
+
+Package amphp/pipeline could be used to limit concurrent downloaded file count.
